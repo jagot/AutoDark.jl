@@ -1,0 +1,13 @@
+name = "AutoDark"
+uuid = "496aa92c-90e4-417e-a504-b778f8eb8d5d"
+authors = ["Stefanos Carlström <stefanos.carlstrom@gmail.com> and contributors"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1.9"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
