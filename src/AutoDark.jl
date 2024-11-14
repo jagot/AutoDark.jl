@@ -2,20 +2,19 @@ module AutoDark
 
 DARK_NOTIFY_RUNNING = false
 
-function auto_dark_apple(fun::Function)
+function proc_line_based(fun::Function, cmd::Cmd, output::AbstractDict)
     AutoDark.DARK_NOTIFY_RUNNING && return
 
-    cmd = `dark-notify`
     pin = Base.PipeEndpoint()
     pout = Base.PipeEndpoint()
     perr = Base.PipeEndpoint()
     proc = run(cmd, pin, pout, perr, wait=false)
-    process_running(proc) || error("Could not start dark-notify")
+    process_running(proc) || error("Could not start $cmd")
     AutoDark.DARK_NOTIFY_RUNNING = true
-    @async try
+    Threads.@spawn try
         while !eof(pout) && process_running(proc)
             line = strip(readline(pout))
-            !isempty(line) && fun(Symbol(line))
+            !isempty(line) && fun(get(output, line, :unknown))
         end
     catch e
         if e isa ProcessFailedException
@@ -33,11 +32,36 @@ function auto_dark_apple(fun::Function)
     nothing
 end
 
+function auto_dark_apple(fun::Function)
+    output = Dict(
+        "light" => :light,
+        "dark" => :dark,
+    )
+    proc_line_based(fun, `dark-notify`, output)
+end
+
+function auto_dark_gnome(fun::Function)
+    output = Dict(
+        "color-scheme: 'default'" => :light,
+        "color-scheme: 'prefer-light'" => :light,
+        "color-scheme: 'prefer-dark'" => :dark,
+    )
+    cmd = `gsettings monitor org.gnome.desktop.interface color-scheme`
+    proc_line_based(fun, cmd, output)
+end
+
+function isgnome()
+    Sys.islinux() || return false
+    get(ENV, "XDG_CURRENT_DESKTOP", "") == "GNOME"
+end
+
 function auto_dark(fun::Function)
     if Sys.isapple()
         auto_dark_apple(fun)
+    elseif isgnome()
+        auto_dark_gnome(fun)
     else
-        error("No support for your OS yet")
+        error("No support for your OS/desktop yet")
     end
 end
 
